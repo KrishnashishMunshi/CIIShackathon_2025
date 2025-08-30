@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureScan - Fake Banking APK Detector</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide-icons@0.372.0"></script>
+
+
+    <style>
+        /* Custom styles for the page */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a; /* Almost black background */
+            color: #e2e8f0; /* Light gray text */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        
+        /* Interactive background canvas */
+        #interactive-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            filter: blur(40px) contrast(15); /* Creates the metaball effect */
+        }
+
+        .glass-effect {
+            background: rgba(17, 24, 39, 0.6); /* Semi-transparent dark blue */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #38bdf8, #4f46e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.5s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        #file-upload-zone {
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        /* Text float on hover effect - MORE PRONOUNCED */
+        .hover-float {
+            transition: transform 0.3s ease-out, filter 0.3s ease-out;
+        }
+        .hover-float:hover {
+            transform: translateY(-5px) scale(1.05);
+            filter: brightness(1.2);
+        }
+        
+        /* Text glow effect (controlled by JS) */
+        #main-heading {
+            transition: text-shadow 0.3s ease-out;
+            /* Added a subtle base glow */
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
+        }
+        
+        /* Gradient text on hover */
+        .hover-gradient-text {
+            background: linear-gradient(90deg, #38bdf8, #4f46e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% 100%;
+            background-position: 100%;
+            transition: background-position 0.5s ease;
+        }
+
+        .hover-gradient-text:hover {
+            background-position: 0%;
+        }
+
+        h2.hover-gradient-text {
+             -webkit-text-fill-color: #e2e8f0; /* Start with normal color */
+        }
+        h2.hover-gradient-text:hover {
+             -webkit-text-fill-color: transparent;
+        }
+        
+        /* Graph pop-out effect */
+        .graph-container {
+            transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+            position: relative; /* Ensures canvas behaves correctly inside */
+        }
+        .graph-container:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+        }
+    </style>
+</head>
+<body class="antialiased">
+    
+    <!-- Interactive background canvas -->
+    <canvas id="interactive-bg"></canvas>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 glass-effect">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sky-400"><shield-check/></svg>
+                <h1 class="text-xl font-bold text-white hover-float">SecureScan</h1>
+            </div>
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="#scanner" class="text-slate-300 hover:text-sky-400 transition hover-float">Scan APK</a>
+                <a href="#analysis" class="text-slate-300 hover:text-sky-400 transition hover-float">How It Works</a>
+                <a href="#threats" class="text-slate-300 hover:text-sky-400 transition hover-float">Threats</a>
+            </nav>
+            <button class="hidden md:block bg-sky-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-sky-600 transition hover-float">Contact Us</button>
+            <i data-lucide="menu" class="md:hidden text-white h-6 w-6"></i>
+        </div>
+    </header>
+
+    <main class="pt-20">
+        <!-- Hero Section & Scanner -->
+        <section id="scanner" class="py-20 md:py-32">
+            <div class="container mx-auto px-6 text-center">
+                
+                <!-- Initial Upload View -->
+                <div id="upload-view">
+                    <h2 id="main-heading" class="text-4xl md:text-6xl font-extrabold text-white leading-tight">
+                        Detect Fake Banking Apps. <br> <span class="gradient-text">Protect Your Finances.</span>
+                    </h2>
+                    <p class="mt-6 max-w-2xl mx-auto text-lg text-slate-400">
+                        Our advanced analysis engine scans Android APK files for malicious code, suspicious permissions, and other threats to keep you safe from financial fraud.
+                    </p>
+                    
+                    <div id="file-upload-zone" class="mt-12 max-w-2xl mx-auto p-8 border-2 border-dashed border-slate-600 rounded-2xl cursor-pointer hover:border-sky-500 hover:bg-slate-800/20">
+                        <input type="file" id="apk-input" class="hidden" accept=".apk">
+                        <div class="flex flex-col items-center space-y-4">
+                            <div class="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center">
+                                <i data-lucide="upload-cloud" class="text-sky-400 h-8 w-8"></i>
+                            </div>
+                            <p class="text-lg font-semibold text-white">Drag & drop your APK file here</p>
+                            <p class="text-slate-400">or</p>
+                            <button id="browse-btn" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition hover-float">Browse Files</button>
+                             <p id="file-name-display" class="text-slate-400 mt-2"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scanning View -->
+                <div id="scanning-view" class="hidden">
+                    <h2 class="text-4xl md:text-5xl font-extrabold text-white">Analyzing File...</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-400" id="scanning-filename"></p>
+                    <div class="mt-12 flex justify-center items-center">
+                        <div class="relative w-40 h-40">
+                            <svg class="absolute top-0 left-0 w-full h-full" viewBox="0 0 100 100">
+                                <circle class="text-slate-700" stroke-width="10" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" />
+                                <circle class="text-sky-500 animate-spin-slow" stroke-width="10" stroke-dasharray="283" stroke-dashoffset="212" stroke-linecap="round" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" style="transform: rotate(-90deg); transform-origin: 50% 50%;" />
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white" id="scan-percentage">0%</div>
+                        </div>
+                    </div>
+                     <p class="mt-8 text-slate-400">Performing static & dynamic analysis...</p>
+                </div>
+
+                <!-- Results View -->
+                <div id="results-view" class="hidden max-w-4xl mx-auto">
+                    <h2 class="text-4xl md:text-5xl font-extrabold text-white">Analysis Complete</h2>
+                    <div class="mt-8 p-8 rounded-2xl glass-effect text-left">
+                        <div class="grid md:grid-cols-3 gap-8 items-center">
+                            <!-- Confidence Score -->
+                            <div class="flex flex-col items-center justify-center">
+                                <p class="font-semibold text-slate-300 mb-4">Confidence Score</p>
+                                <div class="relative w-40 h-40">
+                                    <svg class="w-full h-full" viewBox="0 0 100 100">
+                                        <circle class="text-slate-700" stroke-width="10" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" />
+                                        <circle id="progress-ring" class="progress-ring__circle text-red-500" stroke-width="10" stroke-linecap="round" stroke="currentColor" fill="transparent" r="45" cx="50" cy="50" />
+                                    </svg>
+                                    <div id="confidence-score" class="absolute inset-0 flex items-center justify-center text-3xl font-bold text-white"></div>
+                                </div>
+                                <p id="risk-level" class="mt-4 text-xl font-bold"></p>
+                            </div>
+                            <!-- File Details -->
+                            <div class="md:col-span-2">
+                                <h3 class="text-2xl font-bold text-white">File Details</h3>
+                                <div class="mt-4 space-y-3 text-slate-300">
+                                    <p><strong>File Name:</strong> <span id="result-filename"></span></p>
+                                    <p><strong>Scan ID:</strong> <span id="scan-id"></span></p>
+                                    <p><strong>Detected Threats:</strong> <span id="threat-count" class="font-bold text-red-400"></span></p>
+                                </div>
+                                <div class="mt-6 flex space-x-4">
+                                    <button id="view-details-btn" class="flex-1 bg-sky-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-sky-600 transition hover-float">View Detailed Analysis</button>
+                                    <button id="scan-again-btn" class="flex-1 bg-slate-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-700 transition hover-float">Scan Another File</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Detailed Analysis Section (Modal Placeholder) -->
+        <div id="details-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden items-center justify-center p-4">
+            <div class="glass-effect rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-white">Detailed Analysis Report</h3>
+                    <button id="close-modal-btn"><i data-lucide="x" class="text-slate-400 h-6 w-6"></i></button>
+                </div>
+                <div class="space-y-6">
+                    <!-- Static Analysis -->
+                    <div>
+                        <h4 class="text-lg font-semibold text-sky-400 mb-2">Static Analysis</h4>
+                        <ul class="space-y-2 list-disc list-inside text-slate-300">
+                            <li><span class="font-semibold">Unusual Permissions:</span> Found 3 high-risk permissions (e.g., `READ_SMS`, `SYSTEM_ALERT_WINDOW`).</li>
+                            <li><span class="font-semibold">Suspicious Code:</span> Obfuscated code detected in payment processing module.</li>
+                            <li><span class="font-semibold">Hardcoded URLs:</span> Connection to a known malicious server `http://malicious-server.xyz` found.</li>
+                        </ul>
+                    </div>
+                    <!-- Dynamic Analysis -->
+                    <div>
+                        <h4 class="text-lg font-semibold text-sky-400 mb-2">Dynamic Analysis (Sandbox)</h4>
+                        <ul class="space-y-2 list-disc list-inside text-slate-300">
+                            <li><span class="font-semibold">Network Traffic:</span> Attempted to send encrypted user data to an unauthorized IP address.</li>
+                            <li><span class="font-semibold">File System:</span> Created hidden files in user directory to store credentials.</li>
+                            <li><span class="font-semibold">Behavior:</span> App tried to overlay a fake login screen over other applications.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works Section -->
+        <section id="analysis" class="py-20 bg-black/50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-white hover-gradient-text">How Our Analysis Works</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-slate-400">We use a dual-engine approach for comprehensive threat detection.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="p-8 rounded-2xl glass-effect hover-float">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <div class="w-12 h-12 rounded-lg bg-sky-500/20 flex items-center justify-center">
+                                <i data-lucide="file-code-2" class="text-sky-400 h-6 w-6"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white">Static Analysis</h3>
+                        </div>
+                        <p class="text-slate-300">We examine the APK's code without running it. This involves checking for unusual permissions, looking for known malicious code signatures, and analyzing the app's structure for signs of tampering or obfuscation.</p>
+                    </div>
+                    <div class="p-8 rounded-2xl glass-effect hover-float">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <div class="w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                <i data-lucide="box" class="text-indigo-400 h-6 w-6"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-white">Dynamic Analysis</h3>
+                        </div>
+                        <p class="text-slate-300">We run the app in a secure, isolated sandbox environment to observe its behavior in real-time. We monitor network connections, file system changes, and system calls to detect malicious actions that only appear when the app is active.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Real-time Threat Tracking -->
+        <section id="threats" class="py-20">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-white hover-gradient-text">Real-Time Threat Feed</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-slate-400">A live look at recently detected malicious banking APKs.</p>
+                </div>
+                <div class="glass-effect rounded-2xl overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-white/5">
+                            <tr>
+                                <th class="p-4 font-semibold text-white">APK Name</th>
+                                <th class="p-4 font-semibold text-white hidden md:table-cell">Threat Type</th>
+                                <th class="p-4 font-semibold text-white hidden sm:table-cell">Date Detected</th>
+                                <th class="p-4 font-semibold text-white">Risk</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/10">
+                            <tr>
+                                <td class="p-4">Bank0fAmerica_update.apk</td>
+                                <td class="p-4 hidden md:table-cell">Phishing Overlay</td>
+                                <td class="p-4 hidden sm:table-cell">2024-10-26 14:30 UTC</td>
+                                <td class="p-4"><span class="px-3 py-1 text-sm font-semibold rounded-full bg-red-500/20 text-red-400">Critical</span></td>
+                            </tr>
+                            <tr>
+                                <td class="p-4">SecureWallet_v2.apk</td>
+                                <td class="p-4 hidden md:table-cell">Credential Stealer</td>
+                                <td class="p-4 hidden sm:table-cell">2024-10-26 11:15 UTC</td>
+                                <td class="p-4"><span class="px-3 py-1 text-sm font-semibold rounded-full bg-red-500/20 text-red-400">Critical</span></td>
+                            </tr>
+                            <tr>
+                                <td class="p-4">ChaseMobile_patch.apk</td>
+                                <td class="p-4 hidden md:table-cell">SMS Interceptor</td>
+                                <td class="p-4 hidden sm:table-cell">2024-10-25 22:05 UTC</td>
+                                <td class="p-4"><span class="px-3 py-1 text-sm font-semibold rounded-full bg-orange-500/20 text-orange-400">High</span></td>
+                            </tr>
+                            <tr>
+                                <td class="p-4">MyBankingApp.apk</td>
+                                <td class="p-4 hidden md:table-cell">Adware</td>
+                                <td class="p-4 hidden sm:table-cell">2024-10-25 18:45 UTC</td>
+                                <td class="p-4"><span class="px-3 py-1 text-sm font-semibold rounded-full bg-yellow-500/20 text-yellow-400">Medium</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Interactive Graphs Section -->
+        <section id="stats" class="py-20 bg-black/50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-white hover-gradient-text">Threat Statistics</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-slate-400">Visualizing the threat landscape based on our recent scans.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="p-8 rounded-2xl glass-effect graph-container">
+                        <h3 class="text-xl font-bold text-white mb-4">Threats by Type</h3>
+                        <img src="https://img.freepik.com/free-vector/colorful-bars-infographic_23-2147509930.jpg?semt=ais_hybrid&w=740&q=80" alt="Bar chart showing threats by type" class="w-full h-auto rounded-lg">
+                    </div>
+                    <div class="p-8 rounded-2xl glass-effect graph-container">
+                        <h3 class="text-xl font-bold text-white mb-4">Risk Level Distribution</h3>
+                        <img src="https://www.slidekit.com/wp-content/uploads/2023/12/Dark-Theme-3D-Pie-Chart-Template.jpg" alt="Doughnut chart showing risk level distribution" class="w-full h-auto rounded-lg">
+                    </div>
+                    <div class="p-8 rounded-2xl glass-effect graph-container">
+                        <h3 class="text-xl font-bold text-white mb-4">Threats Detected Over Time</h3>
+                         <img src="https://png.pngtree.com/background/20230524/original/pngtree-market-chart-concept-in-the-form-of-a-line-graph-picture-image_2710351.jpg" alt="Line chart showing threats detected over time" class="w-full h-auto rounded-lg">
+                    </div>
+                    <div class="p-8 rounded-2xl glass-effect graph-container">
+                        <h3 class="text-xl font-bold text-white mb-4">Common Attack Vectors</h3>
+                        <img src="https://cdn1.vectorstock.com/i/1000x1000/75/60/donut-chart-isolated-on-black-background-3d-vector-30337560.jpg" alt="Polar area chart showing common attack vectors" class="w-full h-auto rounded-lg">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 mt-20">
+        <div class="container mx-auto px-6 py-8 text-center text-slate-400">
+            <p>&copy; 2024 SecureScan. All rights reserved.</p>
+            <div class="mt-4 flex justify-center space-x-6">
+                <a href="#" class="hover:text-white">Privacy Policy</a>
+                <a href="#" class="hover:text-white">Terms of Service</a>
+                <a href="#" class="hover:text-white">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Lucide Icons
+            lucide.createIcons();
+            
+            // --- Interactive Background ---
+            const canvas = document.getElementById('interactive-bg');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            const colors = ["#4f46e5", "#38bdf8", "#818cf8"];
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.vx = Math.random() * 0.4 - 0.2;
+                    this.vy = Math.random() * 0.4 - 0.2;
+                    this.radius = Math.random() * 50 + 80;
+                    this.color = colors[Math.floor(Math.random() * colors.length)];
+                }
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                    if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+                }
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                }
+            }
+
+            function initParticles() {
+                for (let i = 0; i < 5; i++) {
+                    particles.push(new Particle());
+                }
+            }
+            initParticles();
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+            
+            // --- Cursor Proximity Glow ---
+            const mainHeading = document.getElementById('main-heading');
+            document.addEventListener('mousemove', (e) => {
+                const rect = mainHeading.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const distance = Math.sqrt(Math.pow(e.clientX - centerX, 2) + Math.pow(e.clientY - centerY, 2));
+                
+                const maxGlow = 35; // Increased max glow
+                const glowRadius = Math.max(0, maxGlow - distance / 10); // Made it more sensitive
+                
+                if (glowRadius > 0) {
+                    // Using a techy cyan color for the glow
+                    mainHeading.style.textShadow = `0 0 ${glowRadius}px rgba(0, 255, 255, 0.8), 0 0 8px rgba(0, 255, 255, 0.2)`;
+                } else {
+                    // Revert to base glow when cursor is far
+                    mainHeading.style.textShadow = '0 0 8px rgba(0, 255, 255, 0.2)';
+                }
+            });
+
+            // --- Original Scanner Logic ---
+            const uploadView = document.getElementById('upload-view');
+            const scanningView = document.getElementById('scanning-view');
+            const resultsView = document.getElementById('results-view');
+            
+            const fileUploadZone = document.getElementById('file-upload-zone');
+            const apkInput = document.getElementById('apk-input');
+            const browseBtn = document.getElementById('browse-btn');
+            const fileNameDisplay = document.getElementById('file-name-display');
+
+            const scanningFilename = document.getElementById('scanning-filename');
+            const scanPercentage = document.getElementById('scan-percentage');
+
+            const resultFilename = document.getElementById('result-filename');
+            const scanId = document.getElementById('scan-id');
+            const threatCount = document.getElementById('threat-count');
+            const confidenceScoreEl = document.getElementById('confidence-score');
+            const riskLevelEl = document.getElementById('risk-level');
+            const progressRing = document.getElementById('progress-ring');
+            
+            const scanAgainBtn = document.getElementById('scan-again-btn');
+            const viewDetailsBtn = document.getElementById('view-details-btn');
+            const detailsModal = document.getElementById('details-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+
+            const radius = progressRing.r.baseVal.value;
+            const circumference = radius * 2 * Math.PI;
+            progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+            progressRing.style.strokeDashoffset = circumference;
+
+            function setProgress(percent) {
+                const offset = circumference - percent / 100 * circumference;
+                progressRing.style.strokeDashoffset = offset;
+            }
+
+            // --- Event Listeners ---
+            browseBtn.addEventListener('click', () => apkInput.click());
+            fileUploadZone.addEventListener('click', () => apkInput.click());
+            fileUploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUploadZone.classList.add('border-sky-500', 'bg-slate-800/20');
+            });
+            fileUploadZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                fileUploadZone.classList.remove('border-sky-500', 'bg-slate-800/20');
+            });
+            fileUploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUploadZone.classList.remove('border-sky-500', 'bg-slate-800/20');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+            apkInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+            scanAgainBtn.addEventListener('click', () => {
+                resultsView.classList.add('hidden');
+                uploadView.classList.remove('hidden');
+                apkInput.value = '';
+                fileNameDisplay.textContent = '';
+            });
+            viewDetailsBtn.addEventListener('click', () => {
+                detailsModal.classList.remove('hidden');
+                detailsModal.classList.add('flex');
+            });
+            closeModalBtn.addEventListener('click', () => {
+                detailsModal.classList.add('hidden');
+                detailsModal.classList.remove('flex');
+            });
+            detailsModal.addEventListener('click', (e) => {
+                if (e.target === detailsModal) {
+                     detailsModal.classList.add('hidden');
+                     detailsModal.classList.remove('flex');
+                }
+            });
+
+            // --- Core Functions ---
+            function handleFile(file) {
+                if (file && file.name.endsWith('.apk')) {
+                    fileNameDisplay.textContent = `Selected file: ${file.name}`;
+                    startScan(file);
+                } else {
+                    fileNameDisplay.textContent = 'Invalid file. Please select an .apk file.';
+                }
+            }
+
+            function startScan(file) {
+                uploadView.classList.add('hidden');
+                scanningView.classList.remove('hidden');
+                scanningFilename.textContent = `File: ${file.name}`;
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.floor(Math.random() * 10) + 1;
+                    if (progress > 100) progress = 100;
+                    scanPercentage.textContent = `${progress}%`;
+                    if (progress === 100) {
+                        clearInterval(interval);
+                        setTimeout(() => showResults(file), 500);
+                    }
+                }, 300);
+            }
+
+            function showResults(file) {
+                scanningView.classList.add('hidden');
+                resultsView.classList.remove('hidden');
+                const score = Math.floor(Math.random() * 60) + 40;
+                const threats = Math.floor(score / 15);
+                let riskLevel = 'Low';
+                let riskColor = 'text-green-500';
+                let ringColor = 'text-green-500';
+
+                if (score > 90) {
+                    riskLevel = 'Critical';
+                    riskColor = 'text-red-500';
+                    ringColor = 'text-red-500';
+                } else if (score > 70) {
+                    riskLevel = 'High';
+                    riskColor = 'text-orange-500';
+                    ringColor = 'text-orange-500';
+                } else if (score > 40) {
+                    riskLevel = 'Medium';
+                    riskColor = 'text-yellow-500';
+                    ringColor = 'text-yellow-500';
+                }
+                resultFilename.textContent = file.name;
+                scanId.textContent = `SCAN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+                threatCount.textContent = `${threats} potential threats`;
+                confidenceScoreEl.textContent = `${score}%`;
+                riskLevelEl.textContent = riskLevel;
+                riskLevelEl.className = `mt-4 text-xl font-bold ${riskColor}`;
+                progressRing.classList.remove('text-red-500', 'text-orange-500', 'text-yellow-500', 'text-green-500');
+                progressRing.classList.add(ringColor);
+                setProgress(score);
+            }
+        });
+    </script>
+</body>
+</html>
