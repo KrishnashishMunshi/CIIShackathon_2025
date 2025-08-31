@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kasukabe APK Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{--bg:#071020;--card:#07172a;--accent:#39d0ff;--accent2:#8b5cf6;--ok:#34d399;--danger:#ff6b6b}
+    body{background: radial-gradient(800px 600px at 80% -10%, #09203a 0%, #071020 40%, #050617 100%); min-height:100vh; color:#e6eef8;}
+    .glass{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.04);backdrop-filter:blur(6px);}
+    .dropzone{border:2px dashed rgba(255,255,255,0.06); padding:2rem; transition:all .15s ease; border-radius:12px;}
+    .dropzone.dragover{border-color:var(--accent); box-shadow:0 10px 30px rgba(57,208,255,0.06); transform:translateY(-2px);}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;}
+  </style>
+</head>
+<body class="antialiased">
+  <div class="max-w-5xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold">APK Scanner</h1>
+      <div class="text-sm text-slate-400">Demo<span id="dbCount">0 entries</span></div>
+    </header>
+
+    <main class="grid md:grid-cols-2 gap-6">
+      <!-- Add -->
+      <section class="glass p-5 rounded-xl">
+        <h2 class="text-xl font-semibold mb-3">Add Known APK</h2>
+        <div id="dropAdd" class="dropzone text-center mb-3">Drop APK here or <button id="chooseAdd" class="underline">choose file</button></div>
+        <input id="fileAdd" type="file" accept=".apk" class="hidden" />
+        <input id="labelInput" placeholder="Label (optional)" class="w-full p-2 mb-3 rounded bg-transparent border border-white/6" />
+        <div class="flex gap-2">
+          <button id="btnAdd" class="px-3 py-2 rounded bg-slate-700">Add</button>
+          <div id="addStatus" class="text-sm text-slate-300"></div>
+        </div>
+      </section>
+
+     
+      <section class="glass p-5 rounded-xl">
+        <h2 class="text-xl font-semibold mb-3">Check APK</h2>
+        <div id="dropCheck" class="dropzone text-center mb-3">Drop APK here or <button id="chooseCheck" class="underline">choose file</button></div>
+        <input id="fileCheck" type="file" accept=".apk" class="hidden" />
+        <div class="flex gap-2">
+          <button id="btnCheck" class="px-3 py-2 rounded bg-slate-700">Check</button>
+          <div id="checkStatus" class="text-sm text-slate-300"></div>
+        </div>
+        <div id="result" class="mt-4 hidden p-3 rounded border border-white/6"></div>
+      </section>
+    </main>
+
+    <section class="glass p-4 rounded-xl mt-6">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-semibold">Known Signatures</h3>
+        <div><button id="btnRefresh" class="px-2 py-1 rounded bg-slate-700 text-sm">Refresh</button></div>
+      </div>
+      <div class="overflow-auto max-h-60">
+        <table class="w-full text-sm">
+          <thead class="text-slate-400"><tr><th class="text-left">Label</th><th>SHA-256</th><th></th></tr></thead>
+          <tbody id="dbRows"><tr><td colspan="3" class="py-3 text-slate-400">No entries</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="text-xs text-slate-400 mt-4">Run server and open <code class="mono">http://localhost:5000</code></footer>
+  </div>
+
+<script>
+const API = (path) => path; 
+const dbCount = document.getElementById('dbCount');
+const dbRows = document.getElementById('dbRows');
+const fileAdd = document.getElementById('fileAdd');
+const fileCheck = document.getElementById('fileCheck');
+const dropAdd = document.getElementById('dropAdd');
+const dropCheck = document.getElementById('dropCheck');
+const chooseAdd = document.getElementById('chooseAdd');
+const chooseCheck = document.getElementById('chooseCheck');
+const btnAdd = document.getElementById('btnAdd');
+const btnCheck = document.getElementById('btnCheck');
+const addStatus = document.getElementById('addStatus');
+const checkStatus = document.getElementById('checkStatus');
+const result = document.getElementById('result');
+const labelInput = document.getElementById('labelInput');
+const btnRefresh = document.getElementById('btnRefresh');
+
+function log(msg){ console.log('[UI]', msg); }
+
+function wireDrop(elem, fileInput){
+  elem.addEventListener('dragover', e=>{ e.preventDefault(); elem.classList.add('dragover'); });
+  elem.addEventListener('dragleave', e=>{ elem.classList.remove('dragover'); });
+  elem.addEventListener('drop', e=>{ e.preventDefault(); elem.classList.remove('dragover'); if(e.dataTransfer.files && e.dataTransfer.files[0]) fileInput.files = e.dataTransfer.files; log('file dropped'); });
+  elem.addEventListener('click', ()=> fileInput.click());
+}
+
+wireDrop(dropAdd, fileAdd); wireDrop(dropCheck, fileCheck);
+chooseAdd.addEventListener('click', ()=> fileAdd.click()); chooseCheck.addEventListener('click', ()=> fileCheck.click());
+
+async function refreshDB(){
+  try{
+    const res = await fetch(API('/api/list'));
+    const data = await res.json();
+    const entries = Object.entries(data.entries || {});
+    dbCount.textContent = entries.length + ' entries';
+    if(entries.length===0) dbRows.innerHTML = '<tr><td colspan="3" class="py-3 text-slate-400">No entries</td></tr>';
+    else dbRows.innerHTML = entries.map(([label,sig])=>`<tr class="border-t"><td class="py-2">${label}</td><td class="py-2 mono text-xs break-all">${sig}</td><td class="py-2"><button data-label="${label}" class="delBtn px-2 py-1 rounded">Delete</button></td></tr>`).join('');
+    document.querySelectorAll('.delBtn').forEach(b=> b.addEventListener('click', async ()=>{
+      if(!confirm('Delete '+b.dataset.label+'?')) return;
+      await fetch('/api/delete/'+encodeURIComponent(b.dataset.label), {method:'DELETE'});
+      refreshDB();
+    }));
+  }catch(e){ console.error(e); }
+}
+
+btnAdd.addEventListener('click', async ()=>{
+  if(!fileAdd.files[0]){ addStatus.textContent = 'Select an APK first.'; return; }
+  const fd = new FormData();
+  fd.append('file', fileAdd.files[0]);
+  if(labelInput.value.trim()) fd.append('label', labelInput.value.trim());
+  addStatus.textContent = 'Uploading...';
+  log('starting upload to /api/add');
+  try{
+    const res = await fetch('/api/add', {method:'POST', body:fd});
+    const data = await res.json();
+    if(res.ok){
+      addStatus.textContent = 'Added: ' + (data.label || 'unknown');
+    } else {
+      addStatus.textContent = 'Error: ' + (data.error || JSON.stringify(data));
+    }
+    log('upload response: '+JSON.stringify(data));
+  }catch(e){
+    addStatus.textContent = 'Upload failed';
+    console.error(e);
+  } finally {
+    fileAdd.value=''; labelInput.value=''; refreshDB();
+    setTimeout(()=> addStatus.textContent='', 4000);
+  }
+});
+
+btnCheck.addEventListener('click', async ()=>{
+  if(!fileCheck.files[0]){ checkStatus.textContent = 'Select an APK to check.'; return; }
+  const fd = new FormData();
+  fd.append('file', fileCheck.files[0]);
+  checkStatus.textContent = 'Checking...'; result.classList.add('hidden');
+  log('uploading to /api/check');
+  try{
+    const res = await fetch('/api/check', {method:'POST', body:fd});
+    const data = await res.json();
+    log('check response: '+JSON.stringify(data));
+    if(res.ok){
+      if(data.genuine){
+        result.innerHTML = `<div class="text-sm"><strong style="color:var(--ok)">GENUINE</strong><div class="mono text-xs">${data.match_label} — ${data.signature}</div></div>`;
+      } else {
+        result.innerHTML = `<div class="text-sm"><strong style="color:var(--danger)">FAKE / UNKNOWN</strong><div class="mono text-xs">signature: ${data.signature || 'n/a'}</div></div>`;
+      }
+      result.classList.remove('hidden');
+    } else {
+      result.innerHTML = '<div class="text-sm text-red-300">Error: '+(data.error||JSON.stringify(data))+'</div>'; result.classList.remove('hidden');
+    }
+  }catch(e){
+    console.error(e);
+    result.innerHTML = '<div class="text-sm text-red-300">Check failed</div>'; result.classList.remove('hidden');
+  } finally {
+    checkStatus.textContent=''; fileCheck.value='';
+  }
+});
+
+btnRefresh.addEventListener('click', refreshDB);
+refreshDB();
+</script>
+</body>
+</html>
